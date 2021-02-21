@@ -1,9 +1,20 @@
 const express = require("express");
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const keys = require('../../config/keys');
 const User = require('../../models/User');
+const passport = require('passport');
 const router = express.Router();
 
 router.get("/test", (req, res) => res.json({ msg: "This is the users route" }));
+
+router.get('/current', passport.authenticate('jwt', {session: false}), (req, res) => {
+  res.json({
+    id: req.user.id,
+    handle: req.user.handle,
+    email: req.user.email
+  })
+})
 
 router.post('/register', (req, res) => {
   // no duplicate email
@@ -25,11 +36,52 @@ router.post('/register', (req, res) => {
             if (err) throw err;
             newUser.password = hash;
             newUser.save()
-              .then(user => res.json(user))
+              .then(user => {
+                const payload = {id: user.id, handle: user.handle};
+
+                jwt.sign(payload, keys.secretOrKey, {expiresIn: 3600}, (err, token) => {
+                  res.json({
+                    success: true, 
+                    token: "Bearer " + token
+                  })
+                })
+              })
               .catch(err => console.log(err));
           })
         })
       }
+    })
+})
+
+router.post('/login', (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+
+  User.findOne({email})
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({email: 'This user does not exist'});
+      }
+
+      bcrypt.compare(password, user.password)
+        .then(isMatch => {
+          if (isMatch) {
+            const payload = {id: user.id, handle: user.handle};
+
+            jwt.sign(
+              payload, 
+              keys.secretOrKey, 
+              {expiresIn: 3600}, 
+              (err, token) => {
+                res.json({
+                  success: true, 
+                  token: 'Bearer ' + token
+                });
+              });
+          } else {
+            return res.status(400).json({password: 'Incorrect password'});
+          }
+        })
     })
 })
 
