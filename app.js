@@ -2,9 +2,9 @@ const express = require("express");
 const app = express();
 const mongoose = require('mongoose');
 const db = require('./config/keys').mongoURI;
+const bodyParser = require('body-parser');
 const users = require("./routes/api/users");
 const tweets = require("./routes/api/tweets");
-const bodyParser = require('body-parser');
 
 mongoose
   .connect(db, { useNewUrlParser: true, useUnifiedTopology: true })
